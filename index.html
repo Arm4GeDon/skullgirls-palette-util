@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keep Only Black Pixels</title>
+    <title>Keep Only Black Pixels (Smooth Edges)</title>
 </head>
 <body>
-    <h2>Outline Extractor</h2>
+    <h2>Keep Only Black Pixels (Smooth Edges)</h2>
     <input type="file" id="imageInput" accept="image/*">
     <label for="threshold">Threshold (0-255):</label>
     <input type="number" id="threshold" value="10" min="0" max="255">
+    <label for="fade">Edge Softness (0-50):</label>
+    <input type="number" id="fade" value="20" min="0" max="50">
     <canvas id="canvas"></canvas>
     <br>
     <button id="downloadBtn">Download PNG</button>
@@ -38,6 +40,7 @@
 
                 // Get threshold value
                 const threshold = parseInt(document.getElementById("threshold").value, 10);
+                const fade = parseInt(document.getElementById("fade").value, 10);
 
                 for (let i = 0; i < pixels.length; i += 4) {
                     const r = pixels[i];
@@ -46,17 +49,18 @@
                     const alpha = pixels[i + 3]; // Preserve original transparency
 
                     if (alpha === 0) {
-                        // Skip fully transparent pixels
+                        // Skip fully transparent pixels (keep them unchanged)
                         continue;
                     }
 
                     const brightness = (r + g + b) / 3; // Convert to grayscale
 
                     if (brightness > threshold) {
-                        // If not dark enough, make it fully transparent
-                        pixels[i + 3] = 0;
+                        // If not dark enough, apply gradual transparency for smoother edges
+                        const fadeAmount = Math.min(255, ((brightness - threshold) / fade) * 255);
+                        pixels[i + 3] = Math.max(0, 255 - fadeAmount);
                     } else {
-                        // Keep the pixel as black
+                        // Keep black pixels fully opaque
                         pixels[i] = 0;
                         pixels[i + 1] = 0;
                         pixels[i + 2] = 0;
@@ -72,7 +76,7 @@
         document.getElementById("downloadBtn").addEventListener("click", function() {
             const canvas = document.getElementById("canvas");
             const link = document.createElement("a");
-            link.download = "only-black.png";
+            link.download = "only-black-smooth.png";
             link.href = canvas.toDataURL("image/png");
             link.click();
         });

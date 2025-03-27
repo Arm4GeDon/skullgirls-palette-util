@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shading / Line Art Extractor</title>
+    <style>
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            visibility: hidden;
+        }
+        #thresholdValue {
+            min-width: 30px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h2>Shading / Line Art Extractor</h2>
+    <input type="file" id="imageInput" accept="image/*">
+    <label>
+        <input type="checkbox" id="lineartOnly">
+        Lineart Only
+    </label>
+    <br>
+    <div class="slider-container" id="sliderContainer">
+        <label for="thresholdSlider">Threshold:</label>
+        <span id="thresholdValue">20</span>
+        <input type="range" id="thresholdSlider" min="0" max="255" value="20">
+    </div>
+    <br>
+    <button id="convertBtn" disabled>Convert</button>
+    <canvas id="canvas"></canvas>
+    <br>
+    <button id="downloadBtn" disabled>Download</button>
+
+    <script>
+        let img = new Image();
+        let originalImageData = null;
+
+        document.getElementById("imageInput").addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            img.src = URL.createObjectURL(file);
+            img.onload = function() {
+                const canvas = document.getElementById("canvas");
+                const ctx = canvas.getContext("2d");
+
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                ctx.drawImage(img, 0, 0);
+
+                originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+                document.getElementById("convertBtn").disabled = false;
+            };
+        });
+
+        document.getElementById("thresholdSlider").addEventListener("input", function() {
+            document.getElementById("thresholdValue").textContent = this.value;
+        });
+
+        document.getElementById("lineartOnly").addEventListener("change", function() {
+            const sliderContainer = document.getElementById("sliderContainer");
+            sliderContainer.style.visibility = this.checked ? "visible" : "hidden";
+        });
+
+        document.getElementById("convertBtn").addEventListener("click", function() {
+            if (!originalImageData) return;
+
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+
+            const imageData = new ImageData(
+                new Uint8ClampedArray(originalImageData.data),
+                originalImageData.width,
+                originalImageData.height
+            );
+
+            const pixels = imageData.data;
+            const lineartMode = document.getElementById("lineartOnly").checked;
+            const blackThreshold = parseInt(document.getElementById("thresholdSlider").value, 10);
+
+            for (let i = 0; i < pixels.length; i += 4) {
+                const r = pixels[i];
+                const g = pixels[i + 1];
+                const b = pixels[i + 2];
+                const alpha = pixels[i + 3];
+
+                if (alpha > 0) {
+                    const gray = (r + g + b) / 3;
+
+                    if (lineartMode) {
+                        if (gray <= blackThreshold) {
+                            pixels[i] = pixels[i + 1] = pixels[i + 2] = 0;
+                            pixels[i + 3] = alpha;
+                        } else {
+                            pixels[i + 3] = 0;
+                        }
+                    } else {
+                        pixels[i] = pixels[i + 1] = pixels[i + 2] = gray;
+                        pixels[i + 3] = (255 - gray) * (alpha / 255);
+                    }
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+
+            document.getElementById("downloadBtn").disabled = false;
+        });
+
+        document.getElementById("downloadBtn").addEventListener("click", function() {
+            const canvas = document.getElementById("canvas");
+            const link = document.createElement("a");
+            link.download = "converted.png";
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        });
+    </script>
+</body>
+</html>
